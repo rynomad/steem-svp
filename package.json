@@ -1,10 +1,10 @@
 {
-  "name": "steembot",
+  "name": "steem-svp",
   "version": "0.0.1",
-  "description": "Tools for creating steembots using steemconnect",
+  "description": "Tools for creating steembots that exchange services for votes",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha test"
   },
   "repository": {
     "type": "git",
