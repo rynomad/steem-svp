@@ -1,0 +1,36 @@
+{
+  "name": "steembot",
+  "version": "0.0.1",
+  "description": "Tools for creating steembots using steemconnect",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rynomad/steembot.git"
+  },
+  "keywords": [
+    "steem"
+  ],
+  "author": "Ryan Bennett",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rynomad/steembot/issues"
+  },
+  "homepage": "https://github.com/rynomad/steembot#readme",
+  "dependencies": {
+    "fs-jetpack": "^2.1.0",
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.5",
+    "steem": "^0.7.1",
+    "tweetnacl": "^1.0.0"
+  },
+  "devDependencies": {
+    "browserify": "^16.2.2",
+    "mocha": "^5.2.0",
+    "opn": "^5.3.0",
+    "sc2-sdk": "^1.0.2",
+    "static-server": "^2.2.1"
+  }
+}
