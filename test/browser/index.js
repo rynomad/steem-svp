@@ -1,6 +1,8 @@
+const assert = require('assert')
+
 const sc2 = require('sc2-sdk')
+
 const template = require('../../.tmp/app.json')
-window.steem = require('steem')
 const BrowserClient = require('../../src/browser.js')
 const shared = require('../shared.js')
 

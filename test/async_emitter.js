@@ -19,21 +19,22 @@ describe("AsyncEmitter", () => {
     }
   });
 
-  it("starts and stops in correct order", done => {
+  it("starts and stops in correct order", function(done) {
+    this.timeout(5000)
     const a = new AsyncEmitter();
     a._process = async () => new Promise(resolve => setTimeout(resolve, 1000));
     let stopped = false;
 
     a.start().then(() => {
-      let res;
-      if (!stopped) {
-        res = new Error("start resolved before stop");
-      }
-      done(res);
+      stopped = true;
     });
 
     a.stop().then(() => {
-      stopped = true;
+      let res;
+      if (!stopped) {
+        res = new Error("stop resolved before start");
+      }
+      done(res);
     });
   });
 });
