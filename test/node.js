@@ -87,6 +87,8 @@ describe("NodeClient", function() {
           port: Number.parseInt(template.callback_url.split(":").pop())
         });
 
+        self.client.start()
+
         server.start(async function() {
           opn(template.callback_url);
           resolve();

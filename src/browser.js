@@ -69,6 +69,7 @@ class BrowserBot extends Bot {
     } else {
       this.login();
     }
+    await super.init();
   }
 
   login() {

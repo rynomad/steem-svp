@@ -1,9 +1,6 @@
 const crypto = require("crypto");
 const steem = require("steem");
-
 const AsyncEmitter = require("./async_emitter.js");
-
-const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 class Client extends AsyncEmitter {
   constructor({ username, api } = {}) {
@@ -15,6 +12,10 @@ class Client extends AsyncEmitter {
     this._api = api;
 
     this._comment_fifo = [];
+  }
+
+  async _process(){
+
   }
 
   async_cb(name, resolve, reject) {
@@ -118,7 +119,7 @@ class Client extends AsyncEmitter {
           job.promise.reject(e);
         }
       }
-      await wait(1000);
+      await this._waitStarted(1000);
     }
 
     this._commenting = false;
@@ -236,7 +237,7 @@ class Client extends AsyncEmitter {
       permlink,
       title,
       body,
-      meta || null
+      meta
     );
     return permlink;
   }
@@ -252,6 +253,14 @@ class Client extends AsyncEmitter {
       meta,
     }
   }) {
+    console.log(      author,
+      permlink,
+      this.username,
+      reply_permlink,
+      title,
+      body,
+      meta || null,
+      priority)
     await this.comment(
       author,
       permlink,
@@ -270,6 +279,7 @@ class Client extends AsyncEmitter {
       steem.api.getContent(author, permlink, (err, res) => {
         if (err) return reject(err);
         if (res.id) return resolve(res);
+        console.log(res)
         resolve(null);
       });
     });

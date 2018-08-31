@@ -1,6 +1,6 @@
 const sc2 = require('sc2-sdk')
 const template = require('../../.tmp/app.json')
-
+window.steem = require('steem')
 const BrowserClient = require('../../src/browser.js')
 const shared = require('../shared.js')
 
@@ -26,6 +26,10 @@ describe('NodeClient', function () {
       })
     })
 
+    client.on('status', ({detail}) => {
+      console.log('status', detail)
+    })
+
     client.on('login_required', (url) => {
       console.log("login required")
       console.log(url)
@@ -44,5 +48,11 @@ describe('NodeClient', function () {
     window.client = self.client
     this.services = await self.client.findServices('Echo')
     console.log("SERVICES", this.services)
+    if (!this.services.length) throw new Error(`didn't find service`)
+    self.client.start()
+    const purchase = await self.client.purchase(this.services[0])
+    await self.client.stop()
+    assert(purchase.username === self.client.username, 'did not get proper username echo')
+    console.log(purchase)
   })
 })

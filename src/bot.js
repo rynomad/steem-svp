@@ -1,6 +1,7 @@
 const nacl = require("tweetnacl");
 const crypto = require("crypto");
 
+const AsyncEmitter = require("./async_emitter.js");
 const Client = require("./client.js");
 
 const SVP_ROOT_PERMLINK = "svp-root";
@@ -23,6 +24,12 @@ class Bot extends Client {
 
   addService({ provider, config } = {}) {
     this.services.push(new Service(this, provider, config));
+  }
+
+  async start() {
+    return Promise.all(
+      this.services.map(service => service.start()).concat([super.start()])
+    );
   }
 
   async init() {
@@ -79,7 +86,7 @@ class Bot extends Client {
 
     const services_post = await this.getPost({
       author: this.username,
-      permlink: "steempay-services"
+      permlink: SVP_SERVICES_PERMLINK
     });
 
     if (!services_post) {
@@ -88,9 +95,9 @@ class Bot extends Client {
         author: this.username,
         permlink: SVP_ROOT_PERMLINK,
         reply: {
-          permlink: "steempay-services",
+          permlink: SVP_SERVICES_PERMLINK,
           title: "Services",
-          body: "services"
+          body: "Service Definitions"
         }
       });
     }
@@ -103,7 +110,7 @@ class Bot extends Client {
   }
 
   async newSession() {
-    this.emit("status", { detail: "ensureing root session post" });
+    this.emit("status", { detail: "ensuring root session post" });
 
     await this.reply({
       permlink: SVP_ROOT_PERMLINK,
@@ -142,6 +149,9 @@ class Bot extends Client {
     await this.post({
       permlink: SVP_ROOT_PERMLINK,
       title: "Root",
+      meta: {
+        tags: [SVP_TAG]
+      },
       body: session_permlink
     });
 
@@ -174,7 +184,7 @@ class Bot extends Client {
     if (!(lastOnline instanceof Date)) lastOnline = new Date(lastOnline);
 
     return (await this.getActiveDiscussionsByTag(SVP_TAG))
-      .map(({author}) => author)
+      .map(({ author }) => author)
       .filter(author => author !== this.username);
   }
 
@@ -204,6 +214,8 @@ class Bot extends Client {
     pubkeyhex,
     reply: { permlink: reply_permlink, title, body }
   }) {
+    if (typeof body === 'object') body = JSON.stringify(body)
+
     let pubkey;
 
     try {
@@ -313,7 +325,7 @@ class Bot extends Client {
       if (deliveries.length) {
         return deliveries[0];
       }
-    } while (await wait(1000));
+    } while (await this._waitStarted(1000));
   }
 
   async purchase({ seller, service_permlink }) {
@@ -328,22 +340,23 @@ class Bot extends Client {
   }
 }
 
-class Service {
+class Service extends AsyncEmitter {
   constructor(
     bot,
-    provider = username => username,
-    {
-      title = "Echo",
-      description = "echo_service",
-      tags = [],
-      terms = { cost: 1 },
-      permlink = crypto.randomBytes(16).toString("hex")
-    } = {}
+    provider = username => ({username}),
+    { title, description = "No Description", tags = [], terms, permlink } = {
+      title: "Echo",
+      description: "Echo Service",
+      tags: [],
+      terms: { cost: 1 },
+      permlink: "echo-service"
+    }
   ) {
-    (this.bot = bot),
-      (this.title = title),
-      (this.description = description),
-      (this.tags = ["steempay"].concat(tags));
+    super();
+    this.bot = bot;
+    this.title = title;
+    this.description = description;
+    this.tags = [SVP_TAG].concat(tags);
     this.terms = terms;
     this.permlink = permlink;
     this.provider = provider;
@@ -390,16 +403,21 @@ class Service {
 
   async postServiceDefinition() {
     this.bot.emit("status", {
-      detail: `posting service definition for ${this.service_definition.title}`
+      detail: `checking service definition for ${this.service_definition.title}`
     });
     const service_definition = await this.bot.getPost({
       author: this.bot.username,
       permlink: this.permlink
     });
     if (!service_definition) {
+      this.bot.emit("status", {
+        detail: `posting service definition for ${
+          this.service_definition.title
+        }, permlink ${this.permlink}`
+      });
       this.permlink = await this.bot.reply({
         author: this.bot.username,
-        permlink: "steempay-services",
+        permlink: SVP_SERVICES_PERMLINK,
         reply: this.service_definition
       });
     }
@@ -440,7 +458,7 @@ class Service {
     return { session_service_permlink, votables, permlink: this.permlink };
   }
 
-  async process() {
+  async _process() {
     const orders = await this.getNewPaidOrders();
     for (let buyer of orders) {
       console.log("fulfill order from", buyer);
@@ -460,24 +478,26 @@ class Service {
       .filter(voter => !this.orders.has(voter));
 
     return Promise.all(
-      new_orders.map(async voter => {
-        const paid = (await Promise.all(
-          this.votables.map(permlink =>
-            this.getActiveVotes({
-              author: this.bot.username,
-              permlink,
-              voter
-            })
-          )
-        )).reduce((_paid, _votes) => _paid && _votes.length, true);
-        if (!paid) {
-          return false;
-        }
+      new_orders
+        .map(async voter => {
+          const paid = (await Promise.all(
+            this.votables.map(permlink =>
+              this.bot.getActiveVotes({
+                author: this.bot.username,
+                permlink,
+                voter
+              })
+            )
+          )).reduce((_paid, _votes) => _paid && _votes.length, true);
+          if (!paid) {
+            return false;
+          }
 
-        this.orders.add(voter);
-        return voter;
-      })
-    ).filter(_truthy => _truthy);
+          this.orders.add(voter);
+          return voter;
+        })
+        .filter(_truthy => _truthy)
+    );
   }
 
   async fulfillOrder(buyer) {
@@ -487,7 +507,7 @@ class Service {
     await this.bot.replyEncrypted({
       priority: true,
       author: buyer,
-      permlink: STEEMPAY_DELIVERIES_PERMLINK,
+      permlink: SVP_DELIVERIES_PERMLINK,
       reply: {
         title: `DELIVERY-${this.session_service_permlink}`,
         body
@@ -495,6 +515,14 @@ class Service {
     });
     this.emit("order");
   }
+}
+
+function bufToUint(buf) {
+  const uint = new Uint8Array(buf.byteLength);
+  for (let i = 0; i < buf.byteLength; i++) {
+    uint[i] = buf[i];
+  }
+  return uint;
 }
 
 module.exports = Bot;
